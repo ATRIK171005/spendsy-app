@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khaata — Your Spending Passbook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
+      "lucide-react": "https://esm.sh/lucide-react@0.400.0?external=react"
+    }
+  }
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; width: 100%; background: #101014; }
+    #loader {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; background: #0C0C0E; color: #F4F1EA;
+      font-family: 'Fraunces', serif; z-index: 9999; transition: opacity 0.4s ease;
+    }
+    .spinner {
+      width: 44px; height: 44px; border: 4px solid rgba(212, 175, 55, 0.2);
+      border-top-color: #D4AF37; border-radius: 50%; animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="spinner"></div>
+    <div style="font-size: 22px; font-weight: 600; letter-spacing: 0.01em; color: #F4F1EA;">Loading Khaata Passbook...</div>
+    <div style="font-size: 12px; font-family: 'IBM Plex Mono', monospace; color: #D4AF37; margin-top: 6px;">Initializing Matte Dark Engine</div>
+  </div>
+  <div id="root"></div>
+
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+
+    async function initApp() {
+      try {
+        const response = await fetch("./ExpenseLedger.jsx");
+        if (!response.ok) throw new Error("Failed to load ExpenseLedger.jsx (HTTP " + response.status + ")");
+        const jsxCode = await response.text();
+
+        // Transform JSX to standard ES module using Babel (classic runtime)
+        const transformed = Babel.transform(jsxCode, {
+          presets: [
+            ["react", { runtime: "classic" }]
+          ],
+          filename: "ExpenseLedger.jsx"
+        }).code;
+
+        // Create a blob URL from the transformed JS
+        const blob = new Blob([transformed], { type: "text/javascript" });
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Dynamically import the transformed ES module
+        const { default: ExpenseLedger } = await import(blobUrl);
+
+        // Mount React root
+        const root = createRoot(document.getElementById("root"));
+        root.render(React.createElement(ExpenseLedger));
+
+        // Fade out loader once rendered
+        setTimeout(() => {
+          const loader = document.getElementById("loader");
+          if (loader) {
+            loader.style.opacity = "0";
+            setTimeout(() => loader.remove(), 400);
+          }
+        }, 150);
+      } catch (err) {
+        console.error("Initialization error:", err);
+        const loader = document.getElementById("loader");
+        if (loader) {
+          loader.innerHTML = `
+            <div style="color: #B5432F; background: #F2ECDA; padding: 28px; border-radius: 12px; max-width: 520px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+              <div style="font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #16342A;">App Failed to Start</div>
+              <div style="font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; color: #B5432F; margin-bottom: 16px;">${err.message}</div>
+              <button onclick="location.reload()" style="background: #16342A; color: #F2ECDA; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;">Retry / Reload</button>
+            </div>
+          `;
+        }
+      }
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
